@@ -49,6 +49,7 @@ jobs:
           - find src/main/resources/fxml -not \( -name controls -prune \) -type f -name '*.fxml' | xargs -t -L1 xmllint --xpath '/*[namespace-uri()="http://javafx.com/javafx/11"]' > /dev/null
 
   nbproperties:
+    container: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
     steps:
       - name: Checkout HEAD
         uses: actions/checkout@v3
@@ -72,6 +73,7 @@ jobs:
           path: nbproject/private/private.properties
 
   build:lernstickTools:
+    container: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
     steps:
       - name: Checkout HEAD
         uses: actions/checkout@v3
@@ -92,6 +94,7 @@ jobs:
           path: lernstickTools/build/libs/lernstickTools.jar
 
   build:jbackpack:
+    container: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
     steps:
       - name: Checkout HEAD
         uses: actions/checkout@v3
@@ -112,6 +115,7 @@ jobs:
           path: jbackpack/dist
 
   build:DLCopy:
+    container: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
     needs: [build:jbackpack,build:lernstickTools,nbproperties]
     steps:
       - name: Checkout HEAD
@@ -137,6 +141,7 @@ jobs:
             build/classes
 
   build:DLCopy:javadoc:
+    container: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
     needs: [build:jbackpack,build:lernstickTools,nbproperties]
     steps:
       - name: Checkout HEAD
@@ -160,6 +165,7 @@ jobs:
           path: dist/javadoc
 
   build:DLCopy:deb:
+    container: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
     needs: [build:DLCopy,build:DLCopy:javadoc]
     steps:
       - name: Fetch build artifacts
@@ -182,6 +188,7 @@ jobs:
           path: dpkg
 
   testfx:
+    container: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
     needs: [build:DLCopy,build:DLCopy:javadoc]
     steps:
       - name: Fetch build artifacts
