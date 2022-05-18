@@ -1,0 +1,200 @@
+name: CI
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+on:
+  pull_request:
+
+jobs:
+  checkstyle:
+    container: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+    steps:
+      - name: Checkout HEAD
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+
+      - name: Checkstyle
+        run:
+          - checkstyle -c config/checkstyle/checks.xml src/
+
+  lineendings:
+    container: alpine
+    steps:
+      - name: Checkout HEAD
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+
+      - name: Unix lineendings
+        run:
+          - apk add --no-cache file findutils
+          - ! find -regex '.*\.\(css\|f?xml\|java\|md\|properties\|svg\|txt\)$' -type f -exec file '{}' \; | grep -F 'CRLF'
+
+  xmllint:
+    container: alpine
+    steps:
+      - name: Checkout HEAD
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+
+      - name: Ensure that the FXML Java versions matches the system verison to avoid warnings
+        run:
+          - apk add --no-cache findutils libxml2-utils
+          - ! find -regex '.*\.f?xml$' -type f -exec xmllint --format --noout '{}' \;
+          - find src/main/resources/fxml -not \( -name controls -prune \) -type f -name '*.fxml' | xargs -t -L1 xmllint --xpath '/*[namespace-uri()="http://javafx.com/javafx/11"]' > /dev/null
+
+  nbproperties:
+    steps:
+      - name: Checkout HEAD
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+
+      - name: Adjust paths for CI environment
+        run:
+          - mkdir -p nbproject/private
+          - |
+            cat << EOF > nbproject/private/private.properties
+            project.JBackpack=jbackpack
+            project.lernstickTools=lernstickTools
+            reference.lernstickTools.jar=\${project.lernstickTools}/build/libs/lernstickTools.jar
+            EOF
+
+      - name: Upload properties
+        uses: actions/upload-artifact@v3
+        with:
+          name: nbproperties
+          path: nbproject/private/private.properties
+
+  build:lernstickTools:
+    steps:
+      - name: Checkout HEAD
+        uses: actions/checkout@v3
+        with:
+          repository: Lernstick/lernstickTools
+          path: lernstickTools
+          fetch-depth: 1
+
+      - name: Build lernstickTools
+        run:
+          - cd lernstickTools
+          - gradle build
+
+      - name: Upload lernstickTools
+        uses: actions/upload-artifact@v3
+        with:
+          name: lernstickTools
+          path: lernstickTools/build/libs/lernstickTools.jar
+
+  build:jbackpack:
+    steps:
+      - name: Checkout HEAD
+        uses: actions/checkout@v3
+        with:
+          repository: Lernstick/jbackpack
+          path: jbackpack
+          fetch-depth: 1
+
+      - name: Build jbackpack
+        run:
+          - cd jbackpack
+          - ant jar
+
+      - name: Upload jbackpack
+        uses: actions/upload-artifact@v3
+        with:
+          name: jbackpack
+          path: jbackpack/dist
+
+  build:DLCopy:
+    needs: [build:jbackpack,build:lernstickTools,nbproperties]
+    steps:
+      - name: Checkout HEAD
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+
+      - name: Fetch build dependencies
+        uses: actions/download-artifact@v3
+        with:
+          name: [jbackpack,lernstickTools,nbproperties]
+
+      - name: Build DLCopy
+        run:
+          - ant jar
+
+      - name: Upload DLCopy
+        uses: actions/upload-artifact@v3
+        with:
+          name: DLCopy
+          path: |
+            dist
+            build/classes
+
+  build:DLCopy:javadoc:
+    needs: [build:jbackpack,build:lernstickTools,nbproperties]
+    steps:
+      - name: Checkout HEAD
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+
+      - name: Fetch build dependencies
+        uses: actions/download-artifact@v3
+        with:
+          name: [jbackpack,lernstickTools,nbproperties]
+
+      - name: Build Javadoc
+        run:
+          - ant javadoc
+
+      - name: Upload Javadoc
+        uses: actions/upload-artifact@v3
+        with:
+          name: Javadoc
+          path: dist/javadoc
+
+  build:DLCopy:deb:
+    needs: [build:DLCopy,build:DLCopy:javadoc]
+    steps:
+      - name: Fetch build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: [DLCopy,Javadoc]
+
+      - name: Build Debian package
+        run:
+          - apt-get update
+          - apt-get install -y --no-install-recommends build-essential debhelper junit
+          - dpkg-buildpackage --no-sign
+          - mkdir dpkg
+          - mv ../dlcopy* dpkg/
+
+      - name: Upload Debian package
+        uses: actions/upload-artifact@v3
+        with:
+          name: Debian
+          path: dpkg
+
+  testfx:
+    needs: [build:DLCopy,build:DLCopy:javadoc]
+    steps:
+      - name: Fetch build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: [DLCopy,Javadoc]
+
+      - name: Run TestFX
+        run:
+          - apt-get update
+          - apt-get install -y --no-install-recommends junit libmockito-java xauth xvfb
+            # Create files for tricking DLCopy into thinking to run on a Lerstick instance
+            # See `src/main/java/ch/fhnw/dlcopy/DebianLiveVersion.java` for more infomration
+          - mkdir -pv /run/live/medium
+          - mkdir -pv /usr/lib/syslinux/mbr
+          - touch /usr/lib/syslinux/mbr/mbr.bin
+          - xvfb-run ant test
