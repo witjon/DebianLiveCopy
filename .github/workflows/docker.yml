@@ -46,5 +46,5 @@ jobs:
           context: ci
           push: true
           #tags: ${{ steps.meta.outputs.tags }},${{ github.image_name_lower }}:latest
-          tags: ${{ env.IMAGE_NAME_LOWER }}:latest
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LOWER }}:latest
           labels: ${{ steps.meta.outputs.labels }}
