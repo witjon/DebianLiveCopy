@@ -33,17 +33,19 @@ jobs:
       - name: downcase REPO
         run: |
           echo "IMAGE_NAME_LOWER=${GITHUB_REPOSITORY,,}" >>${GITHUB_ENV}
+        env:
+          IMAGE_NAME_LOWER: '${{ github.image_name_lower }}'
 
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: ${{ IMAGE_NAME_LOWER }}
+          images: ${{ github.image_name_lower }}
 
       - name: Build and push CI Docker image
         uses: docker/build-push-action@v3
         with:
           context: ci
           push: true
-          tags: ${{ steps.meta.outputs.tags }},${{ IMAGE_NAME_LOWER }}:latest
+          tags: ${{ steps.meta.outputs.tags }},${{ github.image_name_lower }}:latest
           labels: ${{ steps.meta.outputs.labels }}
