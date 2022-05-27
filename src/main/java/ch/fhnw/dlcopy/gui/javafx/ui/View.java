@@ -12,7 +12,7 @@ import javafx.scene.control.Control;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tooltip;
 
-public abstract class View {
+public abstract class View{
 
     protected SceneContext context;
     protected PresentationModel model = PresentationModel.getInstance();

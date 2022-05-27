@@ -4,6 +4,8 @@ import ch.fhnw.dlcopy.gui.javafx.ui.StartscreenUI;
 import ch.fhnw.dlcopy.gui.javafx.ui.View;
 import ch.fhnw.dlcopy.model.PresentationModel;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.util.List;
 import java.util.ResourceBundle;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -44,6 +46,7 @@ public class StorageMediaManagement
     
     @Override
     public void start(Stage stage) throws Exception {
+        
         view = new StartscreenUI();
         Parent root = view.getRoot(this);
         scene = new Scene(root);

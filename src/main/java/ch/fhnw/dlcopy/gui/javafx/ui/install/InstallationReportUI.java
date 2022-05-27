@@ -72,7 +72,8 @@ public class InstallationReportUI extends View{
     }
     
     @Override
-    protected void initControls() {
+    protected void initControls(){
+
         colDuration.setCellValueFactory(cell -> new SimpleStringProperty(cell.getValue().getDuratioinString()));
         colError.setCellValueFactory(cell -> new SimpleStringProperty(cell.getValue().getError()));
         colFinish.setCellValueFactory(cell -> {
